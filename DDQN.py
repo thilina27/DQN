@@ -4,6 +4,7 @@ from collections import deque
 from keras import Sequential
 from keras.layers import Convolution2D, Activation, Flatten, Dense
 from keras.optimizers import Adam
+from keras import backend as K
 import numpy as np
 from Game import Game
 
@@ -44,13 +45,13 @@ class Brain:
     def _create_model(self):
 
         model = Sequential()
-        model.add(Convolution2D(32, 8, 8, strides=(4, 4), input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, STACK_SIZE)))
+        model.add(Convolution2D(32, 8, 8, subsample=(4, 4), input_shape=(IMAGE_HEIGHT, IMAGE_WIDTH, STACK_SIZE)))
         model.add(Activation('relu'))
 
-        model.add(Convolution2D(64, 4, 4, strides=(2, 2)))
+        model.add(Convolution2D(64, 4, 4, subsample=(2, 2)))
         model.add(Activation('relu'))
 
-        model.add(Convolution2D(64, 3, 3, strides=(1, 1)))
+        model.add(Convolution2D(64, 3, 3, subsample=(1, 1)))
         model.add(Activation('relu'))
 
         model.add(Flatten())
@@ -61,7 +62,15 @@ class Brain:
 
         #opt = RMSprop(lr=LEARNING_RATE, rho=0.95, epsilon=0.01)
         opt = Adam(lr=LEARNING_RATE)
-        model.compile(loss='mse', optimizer=opt)
+
+        def huber_loss(y, q_value):
+            error = K.abs(y - q_value)
+            quadratic_part = K.clip(error, 0.0, 1.0)
+            linear_part = error - quadratic_part
+            loss = K.mean(0.5 * K.square(quadratic_part) + linear_part)
+            return loss
+
+        model.compile(loss=huber_loss, optimizer=opt)
 
         return model
 
@@ -69,7 +78,7 @@ class Brain:
     def predict_action(self, state):
 
         q = self.model.predict(state)[0]  # input a stack of 4 images, get the prediction
-        print("Action Q : ",q)
+        print("Action Q : ", q)
         max_q = np.argmax(q)
         action_val = max_q
 
@@ -215,9 +224,9 @@ class Environment:
             self.agent.update_epsilon()
             print("Episode ", i, " Reward : ", rr)
 
-            if i % C == 0:
+            if i != 0 and i % C == 0:
                 self.agent.update_brain()
-            if i % 10 == 0:
+            if i % 100 == 0:
                 self.save_model()
                 print(i)
                 total_rew = 0

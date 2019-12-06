@@ -43,8 +43,8 @@ class Game:
             stack[:, :, i] = state_gray
 
             # change rewards based on death
-            #if info['lives'] != self.life_count:
-                #death = True
+            if info['lives'] != self.life_count:
+                death = True
 
             # score reward
             if rew != 0:
@@ -52,15 +52,17 @@ class Game:
 
             # terminal in 4 frames
             if done:
+
                 terminal = True
 
-        #if death:
-           # self.life_count -= 1
-           # reward = -100
-        if score:
+        if death:
+            #print("dead")
+            self.life_count -= 1
+            reward = -100
+        elif score:
             reward = 10
         else:
-            reward = 0
+            reward = -1
 
         stack = stack.reshape(1, stack.shape[0], stack.shape[1], stack.shape[2])
 
